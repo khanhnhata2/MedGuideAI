@@ -2,15 +2,10 @@ import streamlit as st
 import json
 import os
 import base64
-from openai import AzureOpenAI
-from PIL import Image
+import openai
 from datetime import datetime
 from typing import List, Dict, Any
-import pandas as pd
 from dotenv import load_dotenv
-from chroma_integration import MedicalChromaDB
-# import text_to_speech
-import speed_to_text as sp
 
 from langchain.chains import LLMChain
 from image_analysis.core import process_image_pipeline
@@ -20,9 +15,6 @@ from pinecone_integration import MedicalPineconeDB
 from result_analysis.core import handle_get_result, handle_compare_list_result, handle_compare_list_medicines
 from result_analysis.render import render_latest_result, render_lab_comparison, render_latest_prescription
 from sched_appointment import AppointmentProcessor
- 
-AZURE_OPENAI_ENDPOINT="https://aiportalapi.stu-platform.live/jpe"
-AZURE_OPENAI_API_KEY="sk-dEyinSJuZ8V_u8gKuPksuA"
 
 # # Load environment variables
 load_dotenv()
@@ -83,15 +75,11 @@ few_shot_prompt_examples = """
 
 class MedGuideAI:
     def __init__(self):
-        # Initialize Azure OpenAI client
-        self.client = AzureOpenAI(
-            api_version="2024-07-01-preview",
-            azure_endpoint=os.getenv("OPENAI_ENDPOINT"),
+        # Initialize OpenAI client
+        self.client = openai.OpenAI(
+            base_url=os.getenv("OPENAI_ENDPOINT"),
             api_key=os.getenv("OPENAI_API_KEY"),
         )
-        
-        # Initialize ChromaDB
-        self.chroma_db = MedicalChromaDB()
         self.pinecone_db=MedicalPineconeDB()
        
         # Initialize session state for context management
@@ -234,10 +222,9 @@ class MedGuideAI:
             if topic == 'sched_appointment':
                 print("<duypv10 log> handle function calling to schedule an appointment")
                 processor = AppointmentProcessor(
-                                api_key=AZURE_OPENAI_API_KEY,
-                                azure_endpoint=AZURE_OPENAI_ENDPOINT,
-                                api_version="2024-07-01-preview"
-                            )
+                    base_url=os.getenv("OPENAI_ENDPOINT"),
+                    api_key=os.getenv("OPENAI_API_KEY"),
+                )
                 result = processor.process_with_function_calling(user_input)
                 ai_response = result["ai_response"]
             elif topic == "get_lab_results":

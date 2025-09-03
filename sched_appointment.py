@@ -1,4 +1,3 @@
-# sched_appointment.py
 """
 Xử lý đặt lịch khám bệnh qua OpenAI Function Calling và lưu vào Firebase Firestore.
 """
@@ -7,7 +6,7 @@ import json
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
-from openai import AzureOpenAI
+import openai
 
 # ==== Firebase Initialization ====
 FIREBASE_KEY_PATH = "baymax-a7a0d-firebase-adminsdk-fbsvc-f00628f505.json"  # file service account
@@ -117,14 +116,13 @@ chat_history = []
 
 # ==== Hàm xử lý request đặt lịch ====
 class AppointmentProcessor:
-    def __init__(self, api_key: str, azure_endpoint: str, api_version: str):
+    def __init__(self, api_key: str, base_url: str):
         """
-        Truyền API key và endpoint từ main.py vào để dùng AzureOpenAI.
+        Truyền API key và endpoint từ main.py vào để dùng OpenAI.
         """
-        self.client = AzureOpenAI(
+        self.client = openai.OpenAI(
+            base_url=base_url,
             api_key=api_key,
-            api_version=api_version,
-            azure_endpoint=azure_endpoint
         )
 
     def process_with_function_calling(self, user_input: str):

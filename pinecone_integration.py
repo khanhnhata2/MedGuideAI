@@ -1,9 +1,8 @@
 import os
 import uuid
 import re
-import json
-from typing import List, Dict, Tuple
-from openai import AzureOpenAI
+from typing import List, Dict
+import openai
 from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
 import time
@@ -18,17 +17,15 @@ class MedicalPineconeDB:
         )
        
         # Initialize OpenAI for embeddings (separate from main client)
-        self.embedding_client = AzureOpenAI(
-            api_version="2024-07-01-preview",
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", "https://aiportalapi.stu-platform.live/jpe"),
-            api_key=os.getenv("AZURE_OPENAI_API_KEY_EMBEDDING", "sk-EBGdKuGgz2GaWmVwrt6bKw"),
+        self.embedding_client = openai.OpenAI(
+            base_url=os.getenv("OPENAI_ENDPOINT"),
+            api_key=os.getenv("OPENAI_EMBEDDING_KEY"),
         )
        
         # Initialize OpenAI for classification (main client)
-        self.openai_client = AzureOpenAI(
-            api_version="2024-07-01-preview",
-            azure_endpoint="https://aiportalapi.stu-platform.live/jpe",
-            api_key="sk-dEyinSJuZ8V_u8gKuPksuA",
+        self.openai_client = openai.OpenAI(
+            base_url=os.getenv("OPENAI_ENDPOINT"),
+            api_key=os.getenv("OPENAI_API_KEY"),
         )
        
         # Index configuration
@@ -39,7 +36,7 @@ class MedicalPineconeDB:
         try:
             # Try to get actual dimension from a test embedding
             test_response = self.embedding_client.embeddings.create(
-                model=os.getenv("AZURE_DEPLOYMENT_NAME", "text-embedding-3-small"),
+                model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
                 input="test"
             )
             actual_dimension = len(test_response.data[0].embedding)
@@ -82,11 +79,11 @@ class MedicalPineconeDB:
             self.index = None
    
     def get_embedding(self, text: str) -> List[float]:
-        """Get embedding for text using Azure OpenAI text-embedding-3-small"""
+        """Get embedding for text using OpenAI text-embedding-3-small"""
         try:
-            # Try Azure OpenAI embedding first
+            # Try OpenAI embedding first
             response = self.embedding_client.embeddings.create(
-                model=os.getenv("AZURE_DEPLOYMENT_NAME", "text-embedding-3-small"),
+                model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
                 input=text
             )
             embedding = response.data[0].embedding
@@ -107,10 +104,10 @@ class MedicalPineconeDB:
                 raise Exception("Empty embedding returned")
                
         except Exception as e:
-            print(f"Azure OpenAI embedding failed: {e}")
+            print(f"OpenAI embedding failed: {e}")
             print("Falling back to simple hash-based embedding...")
            
-            # Fallback to simple embedding if Azure fails
+            # Fallback to simple embedding if openAI fails
             return self._get_simple_embedding(text)
    
     def _get_simple_embedding(self, text: str) -> List[float]:
