@@ -347,8 +347,7 @@ def main():
                             # Manual classification
                             collection_map = {
                                 "Triệu chứng": "symptoms",
-                                "Thuốc": "drug_groups",
-                                "Xét nghiệm": "lab_results"
+                                "Thuốc": "drug_groups"
                             }
                             target_collection = collection_map[collection_choice]
                             additions = ai.pinecone_db.add_to_specific_collection(content, doc_file.name, target_collection)
@@ -361,11 +360,10 @@ def main():
                         elif sum(additions.values()) == 0:
                             st.warning("⚠️ Không có dữ liệu nào được thêm vào. Kiểm tra nội dung file và kết nối Pinecone.")
                         else:
-                            st.success(f"✅ Đã thêm: {additions}")
+                            st.success(f"✅ Success")
 
                         # Show collection stats
                         stats = ai.pinecone_db.get_collection_stats()
-                        st.info(f"📊 Tổng: Triệu chứng({stats['symptoms']}), Thuốc({stats['drug_groups']}), XN({stats['lab_results']})")
 
                 except Exception as e:
                     st.error(f"❌ Lỗi: {str(e)}")

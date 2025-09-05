@@ -57,16 +57,10 @@ few_shot_prompt_examples = """
     Example 5:
     Previous topic: None
     Previous message: ""
-    Current message: "Kết quả xét nghiệm glucose của tôi là 180 mg/dL, có bình thường không?"
-    Output: search_lab_results
-
-    Example 6:
-    Previous topic: None
-    Previous message: ""
     Current message: "So sánh kết quả xét nghiệm cholesterol tháng này và tháng trước"
     Output: compare_lab_results
 
-    Example 7:
+    Example 6:
     Previous topic: None
     Previous message: ""
     Current message: "So sánh đơn thuốc bác sĩ A và bác sĩ B kê cho tôi"
@@ -97,23 +91,11 @@ class MedGuideAI:
         self.system_prompt = """
         Bạn là MedGuide AI - Trợ lý y tế thông minh và hữu ích.
        
-        NHIỆM VỤ CHÍNH:
-        1. Phân tích và giải thích kết quả xét nghiệm một cách chi tiết, dễ hiểu
-        2. Phân tích đơn thuốc với thông tin về công dụng, cách dùng, lưu ý
-        3. Đưa ra tư vấn và khuyến nghị dựa trên triệu chứng và dữ liệu
-        4. Cung cấp lời khuyên về dinh dưỡng, lối sống phù hợp
-       
-        CÁCH TIẾP CẬN:
-        - Phân tích chi tiết và đưa ra nhận xét cụ thể về từng chỉ số
-        - Giải thích ý nghĩa của các kết quả bất thường
-        - Đưa ra khuyến nghị dinh dưỡng và lối sống cụ thể
-        - Gợi ý khi nào cần đi khám bác sĩ
-        - Sử dụng ngôn ngữ thân thiện, dễ hiểu
-       
         NGUYÊN TẮC AN TOÀN:
         - Luôn kết thúc với: "Đây là thông tin tham khảo, bạn nên tham khảo bác sĩ để có hướng điều trị chính xác"
         - Không tự ý chẩn đoán bệnh cụ thể
         - Khuyến khích thăm khám chuyên khoa khi cần thiết
+        - Không trả lời những câu hỏi nằm ngoài lĩnh vực y tế
        
         Hãy trả lời một cách chi tiết, hữu ích và thực tế để người dùng hiểu rõ tình trạng sức khỏe của mình.
         """
@@ -164,8 +146,7 @@ class MedGuideAI:
                     - symptoms: Questions about symptoms, signs, or medical conditions
                     - drug_groups: Questions about medications, drugs, or prescriptions
                     - get_prescription: Question about getting prescriptions
-                    - get_lab_results: Question about getting lab results 
-                    - search_lab_results: Questions about lab test values, results interpretation, or asking about specific lab parameters (like glucose, cholesterol, triglyceride, hemoglobin, etc.) with their values and what they mean
+                    - get_lab_results: Question about getting lab results
                     - compare_prescription: Question about comparing prescriptions
                     - compare_lab_results: Question about comparing lab results, must have the word "compare" or "so sánh" in the query
                     - sched_appointment: Requests to schedule an appointment, including name, date/time and reason for visit
@@ -183,7 +164,7 @@ class MedGuideAI:
                 - It doesn't introduce a completely new topic
 
                 Few-shot examples: {few_shot_prompt_examples}
-                Return only the category name (symptoms/drug_groups/get_prescription/get_lab_results/search_lab_results/compare_prescription/compare_lab_results/sched_appointment/other).
+                Return only the category name (symptoms/drug_groups/get_prescription/get_lab_results/compare_prescription/compare_lab_results/sched_appointment/other).
                 """
             
             response = self.client.chat.completions.create(
@@ -194,7 +175,7 @@ class MedGuideAI:
             )
             
             category = response.choices[0].message.content.strip().lower()
-            return category if category in ['symptoms', 'drug_groups', 'get_prescription', 'get_lab_results', 'search_lab_results', 'compare_prescription', 'compare_lab_results', 'sched_appointment', 'other'] else 'other'
+            return category if category in ['symptoms', 'drug_groups', 'get_prescription', 'get_lab_results', 'compare_prescription', 'compare_lab_results', 'sched_appointment', 'other'] else 'other'
             
         except Exception as e:
             return 'other'  # Default fallback
@@ -247,26 +228,30 @@ class MedGuideAI:
                 if topic == 'symptoms':
                     search_results = self.pinecone_db.search_symptoms(user_input, n_results=3)
                 elif topic == 'drug_groups':
-                    search_results = self.pinecone_db.search_drug_groups(user_input, n_results=3)
-                elif topic == 'search_lab_results':
-                    search_results = self.pinecone_db.search_lab_results(user_input, n_results=3)
-
-                print("search_results:", search_results)
-                # Step 3: Text generation with context
-                context_info = "No relevant information found"
+                    search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
 
                 generation_prompt = f"""
-                    Based on the following medical information, provide a helpful response to the user's question.
+                    Bạn là MedGuideAI — trợ lý y tế chuyên về thuốc.
                     
-                    User Question: {user_input}
-                    Topic Category: {topic}
+                    Người dùng hỏi về loại thuốc như sau: "{user_input}"
                     
-                    Relevant Information:
-                    {context_info}
+                    Kết quả tìm kiếm semantic gần nhất từ hệ thống RAG nội bộ (có thể đúng hoặc không liên quan):
+                    {search_results if search_results else 'Không có kết quả'}
                     
-                    Provide a detailed, helpful response in Vietnamese. Always end with: "Đây là thông tin tham khảo, bạn nên tham khảo bác sĩ để có hướng điều trị chính xác"
+                    Nhiệm vụ:
+                    1. Xác định xem thông tin trên có phải là về **đúng loại thuốc** mà người dùng hỏi không.
+                       - Nếu đúng → chỉ sử dụng dữ liệu này để trả lời.
+                       - Nếu không liên quan hoặc không có dữ liệu → dùng kiến thức y khoa từ nguồn uy tín (Bộ Y tế, WHO, PubMed...).
+                    
+                    2. Khi trả lời:
+                       - Giữ giọng văn chuyên nghiệp, dễ hiểu cho người không có chuyên môn y khoa.
+                       - Cấu trúc:
+                         - Mở đầu: Giới thiệu ngắn gọn về thuốc và mục đích sử dụng.
+                         - Nội dung chính: Tác dụng, cơ chế (nếu có).
+                         - Liều dùng: Liều khuyến nghị, tần suất sử dụng.
+                         - Tác dụng phụ: Liệt kê tác dụng phụ thường gặp, kèm lời khuyên.
+                         - Kết luận: Nhắc lại mục đích chính và khuyến cáo tham khảo ý kiến bác sĩ.
                     """
-
                 response = self.client.chat.completions.create(
                     model="GPT-4o-mini",
                     messages=[
