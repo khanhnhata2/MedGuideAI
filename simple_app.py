@@ -14,6 +14,11 @@ from speech_module.tts_mp3_stream import tts_stream
 from speech_module.test_streamlit_stt import speech_to_text
 import speed_to_text as sp
 from login import login, create_sample_users
+import io
+import PyPDF2
+import re
+import pdfplumber
+from datetime import datetime
 
 # Tạo user mẫu Firestore (chỉ chạy 1 lần khi khởi động app)
 if "users_initialized" not in st.session_state:
@@ -89,18 +94,32 @@ def load_ai():
     return MedGuideAI()
 
 
-def save_pdf_to_firestore(username, pdf_file):
+def save_pdf_to_firestore(uploaded_pdf, target):
     db = firestore.client()
-    pdf_bytes = pdf_file.read()
-    pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-    db.collection("medical_results").add(
-        {
-            "username": username,
-            "filename": pdf_file.name,
-            "pdf_data": pdf_b64,
-            "timestamp": datetime.now(),
-        }
-    )
+    uploaded_pdf.seek(0)  # reset con trỏ
+    with pdfplumber.open(io.BytesIO(uploaded_pdf.read())) as pdf:
+        text = "\n".join([page.extract_text() or "" for page in pdf.pages])
+
+    match = re.search(r"\b(\d{6})-(\d{12})\b", text)
+    if match:
+        date_str, user_id = match.groups()
+        exam_date = datetime.strptime(date_str, "%y%m%d").date().isoformat()
+    else:
+        st.error("Không tìm thấy mã bệnh nhân trong PDF")
+        return
+
+    # Lưu metadata vào Firestore
+    record_ref = db.collection(target).document(user_id)
+    record_ref.set({
+        # "fileUrl": file_url,
+        "examDate": exam_date,
+        "uploadedBy": "admin",
+        "user_id": user_id,
+        "parsedText": text,
+        "createdAt": firestore.SERVER_TIMESTAMP
+    })
+
+    st.success(f"✅ Upload thành công cho user {user_id}")
 
 
 if "audio_record_bytes" not in st.session_state:
@@ -383,65 +402,62 @@ def main():
         # Collection selection
         collection_choice = st.selectbox(
             "Chọn loại tài liệu:",
-            ["Tự động phân loại", "Triệu chứng", "Thuốc", "Xét nghiệm"],
-            help="AI sẽ tự động phân loại hoặc bạn có thể chọn trước",
+            ["Tài liệu thuốc nội bộ", "Đơn thuốc của bệnh nhân", "KQXN của bệnh nhân"],
         )
 
         # File uploader
         doc_file = st.file_uploader(
-            "Upload file (.txt, .pdf, .docx):",
-            type=["txt", "pdf", "docx"],
+            "Upload file (.txt, .pdf):",
+            type=["txt", "pdf"],
             help="Tài liệu y tế để bổ sung cơ sở dữ liệu",
         )
 
-        if doc_file and st.button(
-            "📤 Thêm vào cơ sở dữ liệu", use_container_width=True
-        ):
+        if doc_file and st.button("📤 Thêm vào cơ sở dữ liệu", use_container_width=True):
             with st.spinner("Đang xử lý tài liệu..."):
                 try:
-                    # Read file content
-                    if doc_file.type == "text/plain":
-                        content = str(doc_file.read(), "utf-8")
-                    else:
-                        st.error("Hiện tại chỉ hỗ trợ file .txt")
-                        content = None
+                    content = None
+                    target_collection = None
 
-                    if content:
-                        # Process with Pinecone DB
-                        if collection_choice == "Tự động phân loại":
-                            additions = ai.pinecone_db.add_file_content_to_db(
-                                content, doc_file.name
-                            )
-                        else:
-                            # Manual classification
-                            collection_map = {
-                                "Triệu chứng": "symptoms",
-                                "Thuốc": "drug_groups",
-                            }
-                            target_collection = collection_map[collection_choice]
-                            additions = ai.pinecone_db.add_to_specific_collection(
-                                content, doc_file.name, target_collection
-                            )
+                    collection_map = {
+                        "Tài liệu thuốc nội bộ": "drug_groups",
+                        "Đơn thuốc của bệnh nhân": "patient_prescriptions",
+                        "KQXN của bệnh nhân": "patient_test_results"
+                    }
+                    target_collection = collection_map[collection_choice]
 
-                        # Check for errors
-                        if "error" in additions:
-                            st.error(f"❌ Lỗi khi thêm dữ liệu: {additions['error']}")
-                            if "No Pinecone connection" in additions["error"]:
-                                st.warning(
-                                    "⚠️ Vui lòng tạo file .env với PINECONE_API_KEY của bạn"
+                    if collection_choice == "Tài liệu thuốc nội bộ":
+                        if doc_file.type == "text/plain":
+                            content = str(doc_file.read(), "utf-8")
+                            # Nếu là tài liệu thuốc nội bộ và có nội dung thì upload luôn
+                            if content:
+                                additions = ai.pinecone_db.add_to_specific_collection(
+                                    content, doc_file.name, target_collection
                                 )
-                        elif sum(additions.values()) == 0:
-                            st.warning(
-                                "⚠️ Không có dữ liệu nào được thêm vào. Kiểm tra nội dung file và kết nối Pinecone."
-                            )
-                        else:
-                            st.success(f"✅ Success")
 
-                        # Show collection stats
-                        stats = ai.pinecone_db.get_collection_stats()
+                                if "error" in additions:
+                                    st.error(f"❌ Lỗi khi thêm dữ liệu: {additions['error']}")
+                                    if "No Pinecone connection" in additions["error"]:
+                                        st.warning("⚠️ Vui lòng tạo file .env với PINECONE_API_KEY của bạn")
+                                elif sum(additions.values()) == 0:
+                                    st.warning("⚠️ Không có dữ liệu nào được thêm vào. Kiểm tra nội dung file và kết nối Pinecone.")
+                                else:
+                                    st.success(f"✅ Success")
+
+                                stats = ai.pinecone_db.get_collection_stats()
+                        else:
+                            st.error("Hiện tại chỉ hỗ trợ file .txt cho Tài liệu thuốc nội bộ")
+
+                    # Với Đơn thuốc hoặc KQXN -> để bạn tự xử lý PDF ở bước khác
+                    elif collection_choice in ["Đơn thuốc của bệnh nhân", "KQXN của bệnh nhân"]:
+                        if doc_file.type == "application/pdf":
+                            save_pdf_to_firestore(doc_file, target_collection)
+                        else:
+                            st.error("Chỉ hỗ trợ file .pdf cho loại tài liệu này")
+
 
                 except Exception as e:
                     st.error(f"❌ Lỗi: {str(e)}")
+
 
         st.markdown("---")
 
