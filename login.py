@@ -21,15 +21,55 @@ def create_sample_users():
         'password': 'user123',
         'role': 'normal'
     })
+    users_ref.document('120007313547').set({
+        'password': 'user123',
+        'role': 'normal'
+    })
 
-# Hàm đăng nhập từ Firestore
+def get_latest_record(collection_name, user_id):
+    """Lấy bản ghi mới nhất, nếu chưa có trả None"""
+    # Kiểm tra collection có document không
+    check_exists = (
+        db.collection(collection_name)
+        .where("user_id", "==", user_id)
+        .limit(1)
+        .stream()
+    )
+    if not list(check_exists):
+        return None  # Chưa có dữ liệu
+
+    # Nếu có thì query bản mới nhất
+    query = (
+        db.collection(collection_name)
+        .where("user_id", "==", user_id)
+        .order_by("examDate", direction=firestore.Query.DESCENDING)
+        .limit(1)
+        .stream()
+    )
+
+    records = list(query)
+    if not records:
+        return None
+
+    return records[0].to_dict()
+
 def login(username, password):
     user_ref = db.collection('users').document(username)
     user_doc = user_ref.get()
+
     if user_doc.exists:
         user = user_doc.to_dict()
-        if user['password'] == password:
-            return {'username': username, 'role': user['role']}
+        if user.get('password') == password:
+            latest_prescription = get_latest_record("patient_prescriptions", username)
+            latest_test_result = get_latest_record("patient_test_results", username)
+
+            return {
+                'username': username,
+                'role': user.get('role'),
+                'latest_prescription': latest_prescription,
+                'latest_test_result': latest_test_result
+            }
+
     return None
 
 if __name__ == "__main__":

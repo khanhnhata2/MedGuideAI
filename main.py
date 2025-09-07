@@ -92,10 +92,10 @@ class MedGuideAI:
         Bạn là MedGuide AI - Trợ lý y tế thông minh và hữu ích.
        
         NGUYÊN TẮC AN TOÀN:
-        - Luôn kết thúc với: "Đây là thông tin tham khảo, bạn nên tham khảo bác sĩ để có hướng điều trị chính xác"
+        - Nếu câu hỏi nằm trong phạm trù y tế, luôn kết thúc với: "Đây là thông tin tham khảo, bạn nên tham khảo bác sĩ để có hướng điều trị chính xác"
         - Không tự ý chẩn đoán bệnh cụ thể
         - Khuyến khích thăm khám chuyên khoa khi cần thiết
-        - Không trả lời những câu hỏi nằm ngoài lĩnh vực y tế
+        - Nếu câu hỏi KHÔNG nằm trong phạm trù y tế, trả lời: "Xin lỗi, MedGuide AI không thể trả lời câu hỏi nằm ngoài lĩnh vực y tế"
        
         Hãy trả lời một cách chi tiết, hữu ích và thực tế để người dùng hiểu rõ tình trạng sức khỏe của mình.
         """
@@ -181,7 +181,7 @@ class MedGuideAI:
             return 'other'  # Default fallback
 
 
-    def process_user_query(self, user_input: str):
+    def process_user_query(self, user_input: str, user_test_result):
         """Main processing pipeline: classify -> query -> generate"""
         try:
             # Step 1: Text classification
@@ -224,11 +224,8 @@ class MedGuideAI:
             elif topic == "compare_prescription":
                 latest_prescription_result = handle_get_result("prescription", 2)
                 ai_response = handle_compare_list_medicines(latest_prescription_result)
-            else:
-                if topic == 'symptoms':
-                    search_results = self.pinecone_db.search_symptoms(user_input, n_results=3)
-                elif topic == 'drug_groups':
-                    search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
+            elif topic == "drug_groups":
+                search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
 
                 generation_prompt = f"""
                     Bạn là MedGuideAI — trợ lý y tế chuyên về thuốc.
@@ -261,10 +258,37 @@ class MedGuideAI:
                     max_tokens=1000,
                     temperature=0.3
                 )
-            
+
+                ai_response = response.choices[0].message.content
+            else:
+                print("---go in2222")
+                print("---go in", user_test_result)
+                generation_prompt = f"""
+                    Bạn là MedGuideAI — một chuyên gia trong lĩnh vực y tế.
+                    
+                    Người dùng đặt câu hỏi như sau: "{user_input}"
+                    - Kết quả xét nghiệm gần nhất của người dùng: "{user_test_result}"
+                    - Đơn thuốc gần nhất của người dùng: Hiện chưa có thông tin đơn thuốc
+                    
+                    Nhiệm vụ:
+                    1. Đưa ra tư vấn cho người dùng kết hợp với tiền sử kết quả xét nghiệm gần nhất của người dùng 
+                    và đơn thuốc gần nhất của người dùng (nếu có)
+                    2. Dùng kiến thức y khoa từ nguồn uy tín (Bộ Y tế, WHO, PubMed...).
+                    3. Khi trả lời giữ giọng văn chuyên nghiệp, dễ hiểu cho người không có chuyên môn y khoa
+                    4. Trích dẫn những nguồn sử dụng
+                    """
+                response = self.client.chat.completions.create(
+                    model="GPT-4o-mini",
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": generation_prompt}
+                    ],
+                    temperature=0.3
+                )
                 ai_response = response.choices[0].message.content
 
             # # thong's code start
+            print("---go 222")
             print("ai_response: " + ai_response)
             # st.session_state.audio_bytes = text_to_speech.run_audio(ai_response)
             # # thong's code end
@@ -447,46 +471,6 @@ class MedGuideAI:
             "allergy_warnings": [],
             "usage_guidelines": general_tips,
             "important_notes": "Hoàn thành đủ liệu trình kháng sinh nếu có. Không chia sẻ thuốc với người khác."
-        }
-       
-        return json.dumps(result, ensure_ascii=False, indent=2)
-   
-    def assess_symptoms(self, symptoms: List[Dict], patient_age: int = None, medical_history: List[str] = None):
-        """Cung cấp thông tin giáo dục về các biểu hiện sức khỏe"""
-        symptom_summary = []
-        urgency_level = "routine"
-        general_guidance = []
-       
-        # Lưu thông tin vào context
-        for symptom in symptoms:
-            self.add_to_context("symptoms_timeline", f"{symptom['symptom']} - {symptom.get('severity', 'unknown')}")
-       
-        for symptom in symptoms:
-            symptom_name = symptom.get("symptom", "")
-            severity = symptom.get("severity", "mild")
-            duration = symptom.get("duration", "")
-           
-            if severity == "severe":
-                urgency_level = "needs_attention"
-           
-            # Hướng dẫn chung
-            if any(word in symptom_name.lower() for word in ["chest", "ngực"]):
-                general_guidance.append("Tham khảo chuyên khoa tim mạch")
-                if severity == "severe":
-                    urgency_level = "immediate_care"
-            elif any(word in symptom_name.lower() for word in ["head", "đầu"]):
-                general_guidance.append("Tham khảo chuyên khoa thần kinh")
-            elif any(word in symptom_name.lower() for word in ["cough", "ho"]):
-                general_guidance.append("Tham khảo chuyên khoa hô hấp")
-           
-            symptom_summary.append(f"• {symptom_name} (mức độ: {severity}) - thời gian: {duration}")
-       
-        result = {
-            "symptom_information": symptom_summary,
-            "attention_level": urgency_level,
-            "general_guidance": list(set(general_guidance)),
-            "educational_info": ["Theo dõi các biểu hiện", "Ghi chép lại thời gian và mức độ"],
-            "when_to_consult": ["Khi có biểu hiện bất thường", "Khi cần tư vấn chuyên môn"]
         }
        
         return json.dumps(result, ensure_ascii=False, indent=2)

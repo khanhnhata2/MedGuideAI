@@ -109,7 +109,7 @@ def save_pdf_to_firestore(uploaded_pdf, target):
         return
 
     # Lưu metadata vào Firestore
-    record_ref = db.collection(target).document(user_id)
+    record_ref = db.collection(target).document()
     record_ref.set({
         # "fileUrl": file_url,
         "examDate": exam_date,
@@ -295,7 +295,7 @@ def main():
         if last_user_msg:
             # Process with AI (no UI here, just processing)
             print("<duypv10 log> last_user_msg: ", last_user_msg)
-            result = ai.process_user_query(last_user_msg)
+            result = ai.process_user_query(last_user_msg, st.session_state['user']['latest_test_result'])
 
             if "error" in result:
                 response = f"❌ Lỗi: {result['error']}"
