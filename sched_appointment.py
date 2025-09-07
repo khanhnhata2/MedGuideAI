@@ -9,7 +9,7 @@ from firebase_admin import credentials, firestore
 import openai
 
 # ==== Firebase Initialization ====
-FIREBASE_KEY_PATH = "baymax-a7a0d-firebase-adminsdk-fbsvc-f00628f505.json"  # file service account
+FIREBASE_KEY_PATH = "baymax-a7a0d-firebase-adminsdk-fbsvc-cf2ffd7165.json"  # file service account
 if not firebase_admin._apps:
     cred = credentials.Certificate(FIREBASE_KEY_PATH)
     firebase_admin.initialize_app(cred)

@@ -490,7 +490,7 @@ Return only the category name (symptoms/drug_groups).
         """Add content directly to specific collection without AI classification"""
         if not self.index:
             print("Index not available")
-            return {"symptoms": 0, "drug_groups": 0}
+            return {"patient_prescriptions": 0, "drug_groups": 0, "patient_test_results": 0}
            
         chunks = self.split_text_into_chunks(content)
         additions = {"symptoms": 0, "drug_groups": 0}
