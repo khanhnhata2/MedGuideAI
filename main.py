@@ -12,7 +12,7 @@ from image_analysis.core import process_image_pipeline
 from image_analysis.render import render_prescription, render_lab
 from image_analysis.schemas import LabList
 from pinecone_integration import MedicalPineconeDB
-from result_analysis.core import handle_get_result, handle_compare_list_result, handle_compare_list_medicines
+from result_analysis.core import handle_get_result, summarize_user_result, summarize_prescription
 from result_analysis.render import render_latest_result, render_lab_comparison, render_latest_prescription
 from sched_appointment import AppointmentProcessor
 
@@ -143,14 +143,13 @@ class MedGuideAI:
                 Your tasks:
                 1. Classify the current query into one of these categories:
                     Classify the following medical query into one of these categories:
-                    - symptoms: Questions about symptoms, signs, or medical conditions
                     - drug_groups: Questions about medications, drugs, or prescriptions
                     - get_prescription: Question about getting prescriptions
                     - get_lab_results: Question about getting lab results
                     - compare_prescription: Question about comparing prescriptions
                     - compare_lab_results: Question about comparing lab results, must have the word "compare" or "so sánh" in the query
                     - sched_appointment: Requests to schedule an appointment, including name, date/time and reason for visit
-                    - other: Any information that contains a name, date, or time only, or any other irrelevant information.
+                    - other: Other
 
                 2. If the query is vague, incomplete, or clearly a follow-up to the previous conversation and still relevant, return the previous topic.
 
@@ -181,7 +180,7 @@ class MedGuideAI:
             return 'other'  # Default fallback
 
 
-    def process_user_query(self, user_input: str, user_test_result):
+    def process_user_query(self, user_input: str, user_test_result, user_prescription):
         """Main processing pipeline: classify -> query -> generate"""
         try:
             # Step 1: Text classification
@@ -209,21 +208,17 @@ class MedGuideAI:
                 result = processor.process_with_function_calling(user_input)
                 ai_response = result["ai_response"]
             elif topic == "get_lab_results":
-                latest_lab_results = handle_get_result("lab")
-                if latest_lab_results is not None:
-                    ai_response = render_latest_result(latest_lab_results)
-            elif topic == "compare_lab_results":
-                latest_lab_results = handle_get_result("lab", 2)
-                prompt_result =  handle_compare_list_result(latest_lab_results)
-                if prompt_result is not None:
-                    ai_response = render_lab_comparison(prompt_result)
+                ai_response = summarize_user_result(self.system_prompt, user_test_result)
+            # elif topic == "compare_lab_results":
+            #     latest_lab_results = handle_get_result("lab", 2)
+            #     prompt_result =  handle_compare_list_result(latest_lab_results)
+            #     if prompt_result is not None:
+            #         ai_response = render_lab_comparison(prompt_result)
             elif topic == "get_prescription":
-                latest_prescription_result = handle_get_result("prescription")
-                print("latest_prescription_result", latest_prescription_result)
-                ai_response = render_latest_prescription(latest_prescription_result)
-            elif topic == "compare_prescription":
-                latest_prescription_result = handle_get_result("prescription", 2)
-                ai_response = handle_compare_list_medicines(latest_prescription_result)
+                ai_response = summarize_prescription(self.system_prompt, user_prescription)
+            # elif topic == "compare_prescription":
+            #     latest_prescription_result = handle_get_result("prescription", 2)
+            #     ai_response = handle_compare_list_medicines(latest_prescription_result)
             elif topic == "drug_groups":
                 search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
 
@@ -261,14 +256,12 @@ class MedGuideAI:
 
                 ai_response = response.choices[0].message.content
             else:
-                print("---go in2222")
-                print("---go in", user_test_result)
                 generation_prompt = f"""
                     Bạn là MedGuideAI — một chuyên gia trong lĩnh vực y tế.
                     
                     Người dùng đặt câu hỏi như sau: "{user_input}"
-                    - Kết quả xét nghiệm gần nhất của người dùng: "{user_test_result}"
-                    - Đơn thuốc gần nhất của người dùng: Hiện chưa có thông tin đơn thuốc
+                    - Kết quả xét nghiệm gần nhất của người dùng: "{user_test_result or "Hiện không có thông tin kết quả xét nghiệm"}"
+                    - Đơn thuốc gần nhất của người dùng: "{user_prescription or "Hiện chưa có thông tin đơn thuốc"}"
                     
                     Nhiệm vụ:
                     1. Đưa ra tư vấn cho người dùng kết hợp với tiền sử kết quả xét nghiệm gần nhất của người dùng 

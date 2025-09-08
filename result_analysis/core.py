@@ -57,39 +57,25 @@ def handle_get_result(data_type, limit=1, user_id='A12345'):
 
     return latest_data
 
-
-def handle_compare_list_result(results):
-    # Gửi dữ liệu này lên OpenAI để so sánh (ví dụ)
-    if results is not None:
-        print("---results", results)
+def summarize_user_result(system_prompt, user_result):
+    print("---user_result", user_result)
+    if user_result is not None:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    "content": "Bạn là một bác sĩ xét nghiệm giỏi, có khả năng so sánh và phân tích kết quả xét nghiệm y khoa."
+                    "content": system_prompt
                 },
                 {
                     "role": "user",
-                    "content": f"""So sánh 2 kết quả xét nghiệm của cùng một bệnh nhân (lần 1 là kết quả cũ hơn, lần 2 là kết quả mới hơn)
-                    Dữ liệu:
-                    Lần 1 (kết quả cũ): {results[1]}
-                    Lần 2 (kết quả mới): {results[0]}
+                    "content": f"""
+                    Tóm tắt kết quả xét nghiệm sau và đưa ra tư vấn về kết quả, lối sống, dinh dưỡng cho người dùng:
+                    Kết quả xét nghiệm: {user_result}
                     
-                    - Nếu một trong hai lần xét nghiệm thiếu giá trị, Ghi "chưa rõ" một lần.
-                    Ví dụ: PLT: 369 G/L ➡️ chưa rõ.
-                    
-                    Phân tích bao gồm:
-                    1. Thông tin chung của từng lần xét nghiệm.
-                    2. Bảng so sánh từng chỉ số:
-                    - Tên chỉ số
-                    - Giá trị lần 1
-                    - Giá trị lần 2
-                    - Mức thay đổi (tăng/giảm, %)
-                    - Đánh giá sự thay đổi chỉ số đó là tốt hơn hay xấu hơn (tốt hơn, xấu hơn, ổn định)
-                    3. Nhận xét tổng quan về tình hình sức khỏe.
-                    4. Khuyến nghị theo dõi hoặc điều trị.
-                    Hãy trả về kết quả dưới dạng JSON có 3 phần: 'summary', 'table', 'recommendations'."""
+                    Yêu cầu:
+                    1. Trả lời với giọng văn chuyên nghiệp, dễ hiểu
+                    """
                 }
             ],
             temperature=0
@@ -97,7 +83,34 @@ def handle_compare_list_result(results):
 
         return response.choices[0].message.content
     else:
-        return None
+        return "Hiện tại bạn chưa có kết quả xét nghiệm nào"
+
+def summarize_prescription(system_prompt, prescription):
+    if prescription is not None:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                    Tóm tắt kết quả xét nghiệm sau và đưa ra tư vấn về kết quả, lối sống, dinh dưỡng cho người dùng:
+                    Kết quả xét nghiệm: {prescription}
+                    
+                    Yêu cầu:
+                    1. Trả lời với giọng văn chuyên nghiệp, dễ hiểu
+                    """
+                }
+            ],
+            temperature=0
+        )
+
+        return response.choices[0].message.content
+    else:
+        return "Hiện tại bạn chưa có đơn thuốc nào"
 
 def handle_compare_list_medicines(results):
     # Gửi dữ liệu này lên OpenAI để so sánh (ví dụ)

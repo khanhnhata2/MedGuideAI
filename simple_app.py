@@ -295,7 +295,15 @@ def main():
         if last_user_msg:
             # Process with AI (no UI here, just processing)
             print("<duypv10 log> last_user_msg: ", last_user_msg)
-            result = ai.process_user_query(last_user_msg, st.session_state['user']['latest_test_result'])
+            user = st.session_state.get('user')
+            if user:
+                latest_test_result = user.get('latest_test_result')
+                latest_prescription = user.get('latest_prescription')
+            else:
+                latest_test_result = None
+                latest_prescription = None
+
+            result = ai.process_user_query(last_user_msg, latest_test_result, latest_prescription)
 
             if "error" in result:
                 response = f"❌ Lỗi: {result['error']}"
