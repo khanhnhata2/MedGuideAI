@@ -16,7 +16,7 @@ from speech_module.ffmpeg_decoding import AudioPlayer
 from speech_module.tts_mp3_stream import tts_stream
 from speech_module.test_streamlit_stt import speech_to_text
 import speed_to_text as sp
-from login import login, create_sample_users
+from login import login, create_sample_users, get_latest_record
 import io
 import PyPDF2
 import re
@@ -316,17 +316,10 @@ def main():
         if last_user_msg:
             # Process with AI (no UI here, just processing)
             print("<duypv10 log> last_user_msg: ", last_user_msg)
-            user = st.session_state.get("user")
-            if user:
-                latest_test_result = user.get("latest_test_result")
-                latest_prescription = user.get("latest_prescription")
-            else:
-                latest_test_result = None
-                latest_prescription = None
+            user = st.session_state.get('user')
+            username = user.get("username")
 
-            result = ai.process_user_query(
-                last_user_msg, latest_test_result, latest_prescription
-            )
+            result = ai.process_user_query(last_user_msg, get_latest_record, username)
 
             if "error" in result:
                 response = f"❌ Lỗi: {result['error']}"
@@ -362,10 +355,17 @@ def main():
 
     # Handle image processing state (background processing)
     if st.session_state.get("processing_image", False):
+        user_state = st.session_state.get('user')
+        if user_state:
+            latest_test_result = user_state.get('latest_test_result')
+            latest_prescription = user_state.get('latest_prescription')
+        else:
+            latest_test_result = None
+            latest_prescription = None
         # Process with AI (no UI here, just processing)
         temp_image = st.session_state.temp_image
         temp_image.seek(0)
-        response = ai.analyze_medical_image(temp_image, "general")
+        response = ai.analyze_medical_image(temp_image, "general", latest_prescription, latest_test_result)
 
         # Generate audio
         # audio_bytes = text_to_speech.run_audio(response)

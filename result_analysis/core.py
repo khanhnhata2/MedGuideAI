@@ -58,7 +58,6 @@ def handle_get_result(data_type, limit=1, user_id='A12345'):
     return latest_data
 
 def summarize_user_result(system_prompt, user_result):
-    print("---user_result", user_result)
     if user_result is not None:
         response = client.chat.completions.create(
             model="gpt-4o-mini",

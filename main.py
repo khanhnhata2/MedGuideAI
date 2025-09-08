@@ -180,7 +180,7 @@ class MedGuideAI:
             return 'other'  # Default fallback
 
 
-    def process_user_query(self, user_input: str, user_test_result, user_prescription):
+    def process_user_query(self, user_input: str, get_latest_record, username):
         """Main processing pipeline: classify -> query -> generate"""
         try:
             # Step 1: Text classification
@@ -197,6 +197,13 @@ class MedGuideAI:
 
             search_results=""
             ai_response = "❌ Không tìm thấy kết quả phù hợp."
+            user_test_result = "Hiện chưa có thông tin kết quả xét nghiệm gần nhất."
+            user_prescription = "Hiện chưa có thông tin đơn thuốc gần nhất"
+
+            if topic in ("get_lab_results", "get_prescription", "other"):
+                user_prescription = get_latest_record("patient_prescriptions", username)
+                user_test_result = get_latest_record("patient_test_results", username)
+
 
             # Step 2: Query rel evant collection
             if topic == 'sched_appointment':
@@ -209,16 +216,8 @@ class MedGuideAI:
                 ai_response = result["ai_response"]
             elif topic == "get_lab_results":
                 ai_response = summarize_user_result(self.system_prompt, user_test_result)
-            # elif topic == "compare_lab_results":
-            #     latest_lab_results = handle_get_result("lab", 2)
-            #     prompt_result =  handle_compare_list_result(latest_lab_results)
-            #     if prompt_result is not None:
-            #         ai_response = render_lab_comparison(prompt_result)
             elif topic == "get_prescription":
                 ai_response = summarize_prescription(self.system_prompt, user_prescription)
-            # elif topic == "compare_prescription":
-            #     latest_prescription_result = handle_get_result("prescription", 2)
-            #     ai_response = handle_compare_list_medicines(latest_prescription_result)
             elif topic == "drug_groups":
                 search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
 
@@ -251,7 +250,7 @@ class MedGuideAI:
                         {"role": "user", "content": generation_prompt}
                     ],
                     max_tokens=1000,
-                    temperature=0.3
+                    temperature=0
                 )
 
                 ai_response = response.choices[0].message.content
@@ -276,12 +275,11 @@ class MedGuideAI:
                         {"role": "system", "content": self.system_prompt},
                         {"role": "user", "content": generation_prompt}
                     ],
-                    temperature=0.3
+                    temperature=0
                 )
                 ai_response = response.choices[0].message.content
 
             # # thong's code start
-            print("---go 222")
             print("ai_response: " + ai_response)
             # st.session_state.audio_bytes = text_to_speech.run_audio(ai_response)
             # # thong's code end
@@ -308,20 +306,15 @@ class MedGuideAI:
         except Exception as e:
             return None
  
-    def analyze_medical_image(self, image_file, query_type="general"):
+    def analyze_medical_image(self, image_file, query_type="general", latest_prescription = None, latest_test_result = None):
         """Phân tích hình ảnh y tế với Vision API"""
         try:
-            result = process_image_pipeline(image_file)
+            result = process_image_pipeline(image_file, latest_prescription, latest_test_result)
             ai_response = ""
 
             if result:
-                if result["doc_type"] == "đơn thuốc":
-                    meds = result["structured_data"]  # chắc chắn là list
-                    ai_response = render_prescription(meds.medicines)
-                elif result["doc_type"] == "kết quả xét nghiệm":
-                    labs_structured: LabList = result["structured_data"]  # đây là LabList object
-                    labs = labs_structured.lab  # lấy list LabItem bên trong
-                    ai_response = render_lab(labs)
+                if result["doc_type"] == "đơn thuốc" or result["doc_type"] == "kết quả xét nghiệm":
+                    ai_response = result["data"]
                 else:
                     ai_response = "❓ Loại tài liệu chưa được hỗ trợ."
             else:
