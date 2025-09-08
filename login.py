@@ -60,14 +60,9 @@ def login(username, password):
     if user_doc.exists:
         user = user_doc.to_dict()
         if user.get('password') == password:
-            latest_prescription = get_latest_record("patient_prescriptions", username)
-            latest_test_result = get_latest_record("patient_test_results", username)
-
             return {
                 'username': username,
-                'role': user.get('role'),
-                'latest_prescription': latest_prescription,
-                'latest_test_result': latest_test_result
+                'role': user.get('role')
             }
 
     return None
