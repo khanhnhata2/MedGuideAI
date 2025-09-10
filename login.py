@@ -26,6 +26,11 @@ def create_sample_users():
         'role': 'normal'
     })
 
+    users_ref.document('120007313545').set({
+        'password': 'user123',
+        'role': 'normal'
+    })
+
 def get_latest_record(collection_name, user_id):
     """Lấy bản ghi mới nhất, nếu chưa có trả None"""
     # Kiểm tra collection có document không

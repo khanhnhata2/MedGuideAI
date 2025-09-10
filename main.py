@@ -30,12 +30,6 @@ st.set_page_config(
 )
  
 few_shot_prompt_examples = """
-    Example 1:
-    Previous topic: None
-    Previous message: ""
-    Current message: "Tôi bị đau đầu và buồn nôn"
-    Output: symptoms
-
     Example 2:
     Previous topic: sched_appointment
     Previous message: "Đặt lịch khám răng cho tôi ngày 20/10/2025 lúc 10h sáng"
@@ -47,24 +41,6 @@ few_shot_prompt_examples = """
     Previous message: ""
     Current message: "Thuốc paracetamol dùng khi nào?"
     Output: drug_groups
-
-    Example 4:
-    Previous topic: symptoms
-    Previous message: "Tôi bị ho và sốt"
-    Current message: "Uống thuốc gì được?"
-    Output: drug_groups
-
-    Example 5:
-    Previous topic: None
-    Previous message: ""
-    Current message: "So sánh kết quả xét nghiệm cholesterol tháng này và tháng trước"
-    Output: compare_lab_results
-
-    Example 6:
-    Previous topic: None
-    Previous message: ""
-    Current message: "So sánh đơn thuốc bác sĩ A và bác sĩ B kê cho tôi"
-    Output: compare_prescription
 """
 
 class MedGuideAI:
@@ -89,15 +65,14 @@ class MedGuideAI:
        
         # System prompt cho MedGuide AI
         self.system_prompt = """
-        Bạn là MedGuide AI - Trợ lý y tế thông minh và hữu ích.
-       
+        Bạn là MedGuideAI — trợ lý y tế thông minh và hữu ích, chuyên về thuốc, xét nghiệm và tư vấn y khoa tổng quát.
+
         NGUYÊN TẮC AN TOÀN:
-        - Nếu câu hỏi nằm trong phạm trù y tế, luôn kết thúc với: "Đây là thông tin tham khảo, bạn nên tham khảo bác sĩ để có hướng điều trị chính xác"
-        - Không tự ý chẩn đoán bệnh cụ thể
-        - Khuyến khích thăm khám chuyên khoa khi cần thiết
-        - Nếu câu hỏi KHÔNG nằm trong phạm trù y tế, trả lời: "Xin lỗi, MedGuide AI không thể trả lời câu hỏi nằm ngoài lĩnh vực y tế"
-       
-        Hãy trả lời một cách chi tiết, hữu ích và thực tế để người dùng hiểu rõ tình trạng sức khỏe của mình.
+        - Nếu câu hỏi thuộc lĩnh vực y tế:
+          - Không tự ý chẩn đoán bệnh cụ thể.
+          - Luôn kết thúc bằng: "Đây là thông tin tham khảo, bạn nên tham khảo bác sĩ để có hướng điều trị chính xác".
+          - Khuyến khích thăm khám chuyên khoa khi cần.
+        - Khi trả lời, ưu tiên chính xác, dễ hiểu, phù hợp cho người không có chuyên môn y khoa.
         """
 
     # Context Management Methods
@@ -142,14 +117,12 @@ class MedGuideAI:
                 You are a medical query classifier and conversational context analyzer.
                 Your tasks:
                 1. Classify the current query into one of these categories:
-                    Classify the following medical query into one of these categories:
-                    - drug_groups: Questions about medications, drugs, or prescriptions
-                    - get_prescription: Question about getting prescriptions
-                    - get_lab_results: Question about getting lab results
-                    - compare_prescription: Question about comparing prescriptions
-                    - compare_lab_results: Question about comparing lab results, must have the word "compare" or "so sánh" in the query
-                    - sched_appointment: Requests to schedule an appointment, including name, date/time and reason for visit
-                    - other: Other
+                - drug_groups: Questions about medications, drugs, or their uses/dosages/side effects.
+                - get_prescription: Requests to view, retrieve, or check a prescription (e.g., doctor's prescription, medication order).
+                - get_lab_results: Requests to view, retrieve, or check laboratory test results (e.g., blood test, urine test, imaging results).
+                - sched_appointment: Requests to book or schedule a medical appointment (must include name, date/time, and reason if provided).
+                - health_advice: Requests for health or symptom advice (e.g., describing symptoms, asking for medical advice or recommendations)
+                - other: Any other type of query not covered above.
 
                 2. If the query is vague, incomplete, or clearly a follow-up to the previous conversation and still relevant, return the previous topic.
 
@@ -163,7 +136,7 @@ class MedGuideAI:
                 - It doesn't introduce a completely new topic
 
                 Few-shot examples: {few_shot_prompt_examples}
-                Return only the category name (symptoms/drug_groups/get_prescription/get_lab_results/compare_prescription/compare_lab_results/sched_appointment/other).
+                Return only the category name (drug_groups/get_prescription/get_lab_results/sched_appointment/other).
                 """
             
             response = self.client.chat.completions.create(
@@ -180,7 +153,7 @@ class MedGuideAI:
             return 'other'  # Default fallback
 
 
-    def process_user_query(self, user_input: str, get_latest_record, username):
+    def process_user_query(self, user_input: str, get_latest_record, username, use_personal_data):
         """Main processing pipeline: classify -> query -> generate"""
         try:
             # Step 1: Text classification
@@ -191,23 +164,24 @@ class MedGuideAI:
             st.session_state.current_topic = topic
             st.session_state.previous_user_message = user_input
 
-            print("<duypv10 log> current topic:", topic)
-            print("<duypv10 log> previous topic:", previous_topic)
-            print("<duypv10 log> previous user message:", previous_message)
+            print("current topic:", topic)
 
             search_results=""
             ai_response = "❌ Không tìm thấy kết quả phù hợp."
             user_test_result = "Hiện chưa có thông tin kết quả xét nghiệm gần nhất."
             user_prescription = "Hiện chưa có thông tin đơn thuốc gần nhất"
 
-            if topic in ("get_lab_results", "get_prescription", "other"):
+            should_personalize = False
+
+            if topic in ("get_lab_results", "get_prescription", "other", "drug_groups") and username and use_personal_data:
+                should_personalize = True
                 user_prescription = get_latest_record("patient_prescriptions", username)
                 user_test_result = get_latest_record("patient_test_results", username)
 
 
             # Step 2: Query rel evant collection
             if topic == 'sched_appointment':
-                print("<duypv10 log> handle function calling to schedule an appointment")
+                print("handle function calling to schedule an appointment")
                 processor = AppointmentProcessor(
                     base_url=os.getenv("OPENAI_ENDPOINT"),
                     api_key=os.getenv("OPENAI_API_KEY"),
@@ -215,33 +189,34 @@ class MedGuideAI:
                 result = processor.process_with_function_calling(user_input)
                 ai_response = result["ai_response"]
             elif topic == "get_lab_results":
-                ai_response = summarize_user_result(self.system_prompt, user_test_result)
+                ai_response = summarize_user_result(self.system_prompt, user_test_result if should_personalize else None)
             elif topic == "get_prescription":
-                ai_response = summarize_prescription(self.system_prompt, user_prescription)
+                ai_response = summarize_prescription(self.system_prompt, user_prescription if should_personalize else None)
             elif topic == "drug_groups":
                 search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
+                print("---should_personalize", should_personalize)
 
                 generation_prompt = f"""
-                    Bạn là MedGuideAI — trợ lý y tế chuyên về thuốc.
-                    
-                    Người dùng hỏi về loại thuốc như sau: "{user_input}"
+                    Người dùng hỏi: "{user_input}"
                     
                     Kết quả tìm kiếm semantic gần nhất từ hệ thống RAG nội bộ (có thể đúng hoặc không liên quan):
                     {search_results if search_results else 'Không có kết quả'}
                     
-                    Nhiệm vụ:
-                    1. Xác định xem thông tin trên có phải là về **đúng loại thuốc** mà người dùng hỏi không.
-                       - Nếu đúng → chỉ sử dụng dữ liệu này để trả lời.
-                       - Nếu không liên quan hoặc không có dữ liệu → dùng kiến thức y khoa từ nguồn uy tín (Bộ Y tế, WHO, PubMed...).
+                    Kết quả xét nghiệm gần nhất của người dùng: "{user_test_result if should_personalize else 'Hiện chưa có thông tin'}"
+                    Đơn thuốc gần nhất của người dùng: "{user_prescription if should_personalize else 'Hiện chưa có thông tin'}"
                     
-                    2. Khi trả lời:
-                       - Giữ giọng văn chuyên nghiệp, dễ hiểu cho người không có chuyên môn y khoa.
-                       - Cấu trúc:
-                         - Mở đầu: Giới thiệu ngắn gọn về thuốc và mục đích sử dụng.
-                         - Nội dung chính: Tác dụng, cơ chế (nếu có).
-                         - Liều dùng: Liều khuyến nghị, tần suất sử dụng.
-                         - Tác dụng phụ: Liệt kê tác dụng phụ thường gặp, kèm lời khuyên.
-                         - Kết luận: Nhắc lại mục đích chính và khuyến cáo tham khảo ý kiến bác sĩ.
+                    Hướng dẫn
+                    1. Xác định:
+                       - Nếu dữ liệu RAG liên quan → ưu tiên dùng.
+                       - Nếu dữ liệu RAG không liên quan hoặc không có → trả lời dựa trên kiến thức y khoa tổng quát từ nguồn uy tín (Bộ Y tế, WHO, PubMed…).
+                    2. Cấu trúc câu trả lời:
+                       - Giới thiệu ngắn gọn về thuốc hoặc chủ đề được hỏi.
+                       - Tác dụng, cơ chế.
+                       - Liều dùng khuyến nghị.
+                       - Tác dụng phụ.
+                       - **Cá nhân hóa**:
+                            - Dựa vào kết quả xét nghiệm gần nhất của bệnh nhân(nếu có), đưa ra cụ thể những ảnh hưởng tốt và xấu của thuốc, những lưu ý, tác dụng phụ ảnh hưởng đến cơ thể người dùng khi dùng loại thuốc đang hỏi.
+                            - Dựa vào đơn thuốc gần nhất của bệnh nhân(nếu có), đưa ra cụ thể những lưu ý, tương tác thuốc có thể có giữa đơn thuốc gần nhất với loại thuốc người dùng hỏi
                     """
                 response = self.client.chat.completions.create(
                     model="GPT-4o-mini",
@@ -249,7 +224,6 @@ class MedGuideAI:
                         {"role": "system", "content": self.system_prompt},
                         {"role": "user", "content": generation_prompt}
                     ],
-                    max_tokens=1000,
                     temperature=0
                 )
 
@@ -263,8 +237,7 @@ class MedGuideAI:
                     - Đơn thuốc gần nhất của người dùng: "{user_prescription or "Hiện chưa có thông tin đơn thuốc"}"
                     
                     Nhiệm vụ:
-                    1. Đưa ra tư vấn cho người dùng kết hợp với tiền sử kết quả xét nghiệm gần nhất của người dùng 
-                    và đơn thuốc gần nhất của người dùng (nếu có)
+                    1. Đưa ra tư vấn cho người dùng kết hợp với tiền sử kết quả xét nghiệm gần nhất của người dùng (nếu có) và đơn thuốc gần nhất của người dùng (nếu có)
                     2. Dùng kiến thức y khoa từ nguồn uy tín (Bộ Y tế, WHO, PubMed...).
                     3. Khi trả lời giữ giọng văn chuyên nghiệp, dễ hiểu cho người không có chuyên môn y khoa
                     4. Trích dẫn những nguồn sử dụng
@@ -279,10 +252,8 @@ class MedGuideAI:
                 )
                 ai_response = response.choices[0].message.content
 
-            # # thong's code start
-            print("ai_response: " + ai_response)
+            # print("ai_response: " + ai_response)
             # st.session_state.audio_bytes = text_to_speech.run_audio(ai_response)
-            # # thong's code end
             
             # Add to conversation history
             self.add_conversation("user", user_input)

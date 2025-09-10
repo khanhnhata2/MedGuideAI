@@ -59,6 +59,7 @@ def handle_get_result(data_type, limit=1, user_id='A12345'):
 
 def summarize_user_result(system_prompt, user_result):
     if user_result is not None:
+        fileUrl = user_result["fileUrl"]
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -74,6 +75,7 @@ def summarize_user_result(system_prompt, user_result):
                     
                     Yêu cầu:
                     1. Trả lời với giọng văn chuyên nghiệp, dễ hiểu
+                    2. Kết thúc bằng link file gốc(nếu có): {fileUrl or "Hiện không có link file gốc"}
                     """
                 }
             ],
@@ -86,6 +88,7 @@ def summarize_user_result(system_prompt, user_result):
 
 def summarize_prescription(system_prompt, prescription):
     if prescription is not None:
+        fileUrl = prescription["fileUrl"]
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -101,6 +104,7 @@ def summarize_prescription(system_prompt, prescription):
                     
                     Yêu cầu:
                     1. Trả lời với giọng văn chuyên nghiệp, dễ hiểu
+                    2. Kết thúc bằng link file gốc(nếu có): {fileUrl or "Hiện không có link file gốc"}
                     """
                 }
             ],
