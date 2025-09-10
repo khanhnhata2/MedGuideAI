@@ -10,6 +10,7 @@ import numpy as np
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
+import streamlit as st
 
 def init_firebase():
     if not firebase_admin._apps:  # Nếu chưa có app nào được khởi tạo
@@ -28,9 +29,9 @@ init_firebase()
 db = firestore.client()
 
 llm = ChatOpenAI(
-    base_url=os.getenv("OPENAI_ENDPOINT"),
-    api_key=os.getenv("OPENAI_API_KEY"),
-    model=os.getenv("OPENAI_MODEL", "text-embedding-3-small"),
+    base_url=st.secrets["OPENAI_ENDPOINT"],
+    api_key=st.secrets["OPENAI_API_KEY"],
+    model=st.secrets["OPENAI_MODEL"],
     temperature=0
 )
 
