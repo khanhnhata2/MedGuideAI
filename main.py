@@ -9,11 +9,8 @@ from dotenv import load_dotenv
 
 from langchain.chains import LLMChain
 from image_analysis.core import process_image_pipeline
-from image_analysis.render import render_prescription, render_lab
-from image_analysis.schemas import LabList
 from pinecone_integration import MedicalPineconeDB
-from result_analysis.core import handle_get_result, summarize_user_result, summarize_prescription
-from result_analysis.render import render_latest_result, render_lab_comparison, render_latest_prescription
+from result_analysis.core import summarize_user_result, summarize_prescription
 from sched_appointment import AppointmentProcessor
 
 # # Load environment variables
@@ -30,13 +27,13 @@ st.set_page_config(
 )
  
 few_shot_prompt_examples = """
-    Example 2:
+    Example 1:
     Previous topic: sched_appointment
     Previous message: "Đặt lịch khám răng cho tôi ngày 20/10/2025 lúc 10h sáng"
     Current message: "Khám đau đầu"
     Output: sched_appointment
 
-    Example 3:
+    Example 2:
     Previous topic: drug_groups
     Previous message: ""
     Current message: "Thuốc paracetamol dùng khi nào?"
