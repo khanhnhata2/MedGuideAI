@@ -7,11 +7,12 @@ from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 import openai
+import streamlit as st
 
 # ==== Firebase Initialization ====
-FIREBASE_KEY_PATH = "baymax-a7a0d-firebase-adminsdk-fbsvc-96ed2a05de.json"  # file service account
+firebase_config = dict(st.secrets["firebase"])
 if not firebase_admin._apps:
-    cred = credentials.Certificate(FIREBASE_KEY_PATH)
+    cred = credentials.Certificate(firebase_config)
     firebase_admin.initialize_app(cred)
     print("<duypv10 log> Firebase initialized.")
 else:
