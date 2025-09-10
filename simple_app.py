@@ -1,15 +1,9 @@
 import threading
-import time
 import streamlit as st
-import os
-from datetime import datetime
-from PIL import Image
 from main import MedGuideAI
 from firebase_admin import firestore
-import base64
 import cloudinary
 import cloudinary.uploader
-from cloudinary.utils import cloudinary_url
 
 # import text_to_speech
 from speech_module.ffmpeg_decoding import AudioPlayer
@@ -260,6 +254,14 @@ def main():
             st.session_state.processing = True
 
     with col1:
+        if st.session_state.get("user"):  # an toàn, không lỗi nếu chưa có 'user'
+            use_personal_data = st.toggle(
+                "Kết hợp dữ liệu cá nhân",
+                value=True,
+                key="personal_data_switch"
+            )
+        else:
+            use_personal_data = False
         # Chat input
         user_text = st.chat_input(placeholder="Nhập câu hỏi y tế... (Enter để gửi)")
         text_submit = bool(user_text)
@@ -317,9 +319,9 @@ def main():
             # Process with AI (no UI here, just processing)
             print("<duypv10 log> last_user_msg: ", last_user_msg)
             user = st.session_state.get('user')
-            username = user.get("username")
+            username = user.get("username") if user else None
 
-            result = ai.process_user_query(last_user_msg, get_latest_record, username)
+            result = ai.process_user_query(last_user_msg, get_latest_record, username, use_personal_data)
 
             if "error" in result:
                 response = f"❌ Lỗi: {result['error']}"
