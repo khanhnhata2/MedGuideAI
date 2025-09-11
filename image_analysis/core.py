@@ -129,9 +129,9 @@ def analyze_lab_with_knowledge(lab_text: str, latest_prescription, latest_test_r
             {latest_test_result}
                 
             Yêu cầu:
-            1. Dựa theo nội dung OCR từ bảng kết quả xét nghiệm y tế, phân tích tất cả các chỉ số
-            2. So sánh nội dung OCR từ bảng kết quả xét nghiệm y tế với kết quả xét nghiệm gần nhất của bệnh nhân trong kho dữ liệu bệnh viện, phân tích sự thay đổi giữa hai lần.
-            3. Dựa vào đơn thuốc gần nhất của bệnh nhân trong kho dữ liệu bệnh viện, kiểm tra xem có loại thuốc nào cần chú ý không
+            1. Dựa theo nội dung OCR từ bảng kết quả xét nghiệm y tế, phân tích và giải thích về tất cả các chỉ số.
+            2. So sánh nội dung OCR từ bảng kết quả xét nghiệm y tế với kết quả xét nghiệm gần nhất của bệnh nhân trong kho dữ liệu bệnh viện, phân tích và nhận xét sự thay đổi giữa hai lần.
+            3. Dựa vào đơn thuốc gần nhất của bệnh nhân trong kho dữ liệu bệnh viện, kiểm tra xem có loại thuốc nào cần chú ý hoặc có thể gây ảnh hưởng xấu đến bệnh nhân không?
             """
     )
 
