@@ -1,4 +1,3 @@
-import os
 import uuid
 import re
 from typing import List, Dict
@@ -6,6 +5,7 @@ import openai
 from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
 import time
+import streamlit as st
  
 load_dotenv()
  
@@ -13,19 +13,19 @@ class MedicalPineconeDB:
     def __init__(self):
         # Initialize Pinecone
         self.pc = Pinecone(
-            api_key=os.getenv("PINECONE_API_KEY", "pcsk_2LbbcE_JfeW6YB5qG8d599CoNSvQVKPirsLdF1KCudYSz5o4tnrsUbs9FFggrRv6JoA145")
+            api_key=st.secrets["PINECONE_API_KEY"]
         )
        
         # Initialize OpenAI for embeddings (separate from main client)
         self.embedding_client = openai.OpenAI(
-            base_url=os.getenv("OPENAI_ENDPOINT"),
-            api_key=os.getenv("OPENAI_EMBEDDING_KEY"),
+            base_url=st.secrets["OPENAI_ENDPOINT"],
+            api_key=st.secrets["OPENAI_EMBEDDING_KEY"],
         )
        
         # Initialize OpenAI for classification (main client)
         self.openai_client = openai.OpenAI(
-            base_url=os.getenv("OPENAI_ENDPOINT"),
-            api_key=os.getenv("OPENAI_API_KEY"),
+            base_url=st.secrets["OPENAI_ENDPOINT"],
+            api_key=st.secrets["OPENAI_API_KEY"],
         )
        
         # Index configuration
@@ -36,7 +36,7 @@ class MedicalPineconeDB:
         try:
             # Try to get actual dimension from a test embedding
             test_response = self.embedding_client.embeddings.create(
-                model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+                model=st.secrets["OPENAI_EMBEDDING_MODEL"],
                 input="test"
             )
             actual_dimension = len(test_response.data[0].embedding)
@@ -82,7 +82,7 @@ class MedicalPineconeDB:
         try:
             # Try OpenAI embedding first
             response = self.embedding_client.embeddings.create(
-                model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+                model=st.secrets["OPENAI_EMBEDDING_MODEL"],
                 input=text
             )
             embedding = response.data[0].embedding

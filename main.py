@@ -1,6 +1,5 @@
 import streamlit as st
 import json
-import os
 import base64
 import openai
 from datetime import datetime
@@ -44,8 +43,8 @@ class MedGuideAI:
     def __init__(self):
         # Initialize OpenAI client
         self.client = openai.OpenAI(
-            base_url=os.getenv("OPENAI_ENDPOINT"),
-            api_key=os.getenv("OPENAI_API_KEY"),
+            base_url=st.secrets["OPENAI_ENDPOINT"],
+            api_key=st.secrets["OPENAI_API_KEY"],
         )
         self.pinecone_db=MedicalPineconeDB()
        
@@ -180,8 +179,8 @@ class MedGuideAI:
             if topic == 'sched_appointment':
                 print("handle function calling to schedule an appointment")
                 processor = AppointmentProcessor(
-                    base_url=os.getenv("OPENAI_ENDPOINT"),
-                    api_key=os.getenv("OPENAI_API_KEY"),
+                    base_url=st.secrets["OPENAI_ENDPOINT"],
+                    api_key=st.secrets["OPENAI_API_KEY"],
                 )
                 result = processor.process_with_function_calling(user_input)
                 ai_response = result["ai_response"]

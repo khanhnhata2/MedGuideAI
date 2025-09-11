@@ -12,7 +12,6 @@ from speech_module.test_streamlit_stt import speech_to_text
 import speed_to_text as sp
 from login import login, create_sample_users, get_latest_record
 import io
-import PyPDF2
 import re
 import pdfplumber
 from datetime import datetime
