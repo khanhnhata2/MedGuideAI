@@ -5,7 +5,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 # Khởi tạo Firestore
-cred = credentials.Certificate('baymax-a7a0d-firebase-adminsdk-fbsvc-cf2ffd7165.json')
+cred = credentials.Certificate('baymax-a7a0d-firebase-adminsdk-fbsvc-96ed2a05de.json')
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 db = firestore.client()

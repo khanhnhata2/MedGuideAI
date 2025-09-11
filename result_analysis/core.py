@@ -8,7 +8,7 @@ from google.cloud.firestore_v1 import FieldFilter
 
 def init_firebase():
     if not firebase_admin._apps:  # Nếu chưa có app nào được khởi tạo
-        cred = credentials.Certificate("baymax-a7a0d-firebase-adminsdk-fbsvc-cf2ffd7165.json")
+        cred = credentials.Certificate("baymax-a7a0d-firebase-adminsdk-fbsvc-96ed2a05de.json")
         firebase_admin.initialize_app(cred)
         print("Firebase initialized.")
     else:
