@@ -91,7 +91,6 @@ def playback_controls(message_id: str, message_content: str):
 def load_ai():
     return MedGuideAI()
 
-
 def save_pdf_to_firestore(uploaded_pdf, target):
     db = firestore.client()
     uploaded_pdf.seek(0)  # reset con trỏ
@@ -102,7 +101,13 @@ def save_pdf_to_firestore(uploaded_pdf, target):
     match = re.search(r"\b(\d{6})-(\d{12})\b", text)
     if match:
         date_str, user_id = match.groups()
-        exam_date = datetime.strptime(date_str, "%y%m%d").date().isoformat()
+
+        # Chuyển DDMMYY -> datetime
+        exam_datetime = datetime.strptime(date_str, "%d%m%y")  # ddmmyy
+
+        # Nếu muốn lưu string ISO cho Firestore (YYYY-MM-DD)
+        exam_date_iso = exam_datetime.date().isoformat()
+
     else:
         st.error("Không tìm thấy mã bệnh nhân trong PDF")
         return
@@ -115,7 +120,7 @@ def save_pdf_to_firestore(uploaded_pdf, target):
     record_ref.set(
         {
             "fileUrl": file_url,
-            "examDate": exam_date,
+            "examDate": exam_date_iso,
             "uploadedBy": "admin",
             "user_id": user_id,
             "parsedText": text,
@@ -263,7 +268,8 @@ def main():
             use_personal_data = False
         # Chat input: disable nếu là admin
         user_text = st.chat_input(
-            placeholder="Nhập câu hỏi y tế... (Enter để gửi)", disabled=is_admin
+            placeholder="Admin hiện không thể sử dụng chức năng này" if is_admin else "Nhập câu hỏi y tế... (Enter để gửi)",
+            disabled=is_admin
         )
         text_submit = bool(user_text)
 
@@ -318,7 +324,6 @@ def main():
 
         if last_user_msg:
             # Process with AI (no UI here, just processing)
-            print("<duypv10 log> last_user_msg: ", last_user_msg)
             user = st.session_state.get("user")
             username = user.get("username") if user else None
 
@@ -361,9 +366,10 @@ def main():
     # Handle image processing state (background processing)
     if st.session_state.get("processing_image", False):
         user_state = st.session_state.get("user")
-        if user_state:
-            latest_test_result = user_state.get("latest_test_result")
-            latest_prescription = user_state.get("latest_prescription")
+        username = user.get("username") if user else None
+        if user_state and use_personal_data:
+            latest_test_result = get_latest_record("patient_test_results", username)
+            latest_prescription = get_latest_record("patient_prescriptions", username)
         else:
             latest_test_result = None
             latest_prescription = None
@@ -453,13 +459,13 @@ def main():
                         target_collection = None
 
                         collection_map = {
-                            "Tài liệu thuốc nội bộ": "drug_groups",
+                            "Tài liệu thuốc nội bộ": "drug_groups",
                             "Đơn thuốc của bệnh nhân": "patient_prescriptions",
                             "KQXN của bệnh nhân": "patient_test_results",
                         }
-                        target_collection = collection_map[collection_choice]
 
-                        if collection_choice == "Tài liệu thuốc nội bộ":
+                        target_collection = collection_map[collection_choice]
+                        if collection_choice == "Tài liệu thuốc nội bộ":
                             if doc_file.type == "text/plain":
                                 content = str(doc_file.read(), "utf-8")
                                 # Nếu là tài liệu thuốc nội bộ và có nội dung thì upload luôn

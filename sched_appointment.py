@@ -14,9 +14,7 @@ firebase_config = dict(st.secrets["firebase"])
 if not firebase_admin._apps:
     cred = credentials.Certificate(firebase_config)
     firebase_admin.initialize_app(cred)
-    print("<duypv10 log> Firebase initialized.")
 else:
-    print("<duypv10 log> Firebase already initialized.")
 db = firestore.client()
 
 

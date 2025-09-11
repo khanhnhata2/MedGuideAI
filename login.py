@@ -61,6 +61,26 @@ def get_latest_record(collection_name, user_id):
 
     return records[0].to_dict()
 
+def get_records_in_range(collection_name, user_id, start: int = 0, end: int = None):
+    """Lấy các bản ghi từ vị trí start đến end (theo examDate DESC).
+    Nếu end=None thì lấy hết từ start đến cuối."""
+
+    query = (
+        db.collection(collection_name)
+        .where("user_id", "==", user_id)
+        .order_by("examDate", direction=firestore.Query.DESCENDING)
+        .stream()
+    )
+
+    records = [doc.to_dict() for doc in query]
+
+    # Nếu end = None thì Python slice sẽ tự lấy đến hết danh sách
+    filtered_results = records[start:end]
+
+    return filtered_results if filtered_results else None
+
+
+
 def login(username, password):
     user_ref = db.collection('users').document(username)
     user_doc = user_ref.get()

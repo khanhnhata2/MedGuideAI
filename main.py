@@ -190,7 +190,6 @@ class MedGuideAI:
                 ai_response = summarize_prescription(self.system_prompt, user_prescription if should_personalize else None)
             elif topic == "drug_groups":
                 search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
-                print("---should_personalize", should_personalize)
 
                 generation_prompt = f"""
                     Người dùng hỏi: "{user_input}"
@@ -207,6 +206,7 @@ class MedGuideAI:
                        - Nếu dữ liệu RAG không liên quan hoặc không có → trả lời dựa trên kiến thức y khoa tổng quát từ nguồn uy tín (Bộ Y tế, WHO, PubMed…).
                     2. Cấu trúc câu trả lời:
                        - Giới thiệu ngắn gọn về thuốc hoặc chủ đề được hỏi.
+                       - Giới thiệu về các hoạt chất trong thuốc
                        - Tác dụng, cơ chế.
                        - Liều dùng khuyến nghị.
                        - Tác dụng phụ.
