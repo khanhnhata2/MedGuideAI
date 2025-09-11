@@ -253,16 +253,18 @@ def main():
             st.session_state.processing = True
 
     with col1:
-        if st.session_state.get("user"):  # an toàn, không lỗi nếu chưa có 'user'
+        user = st.session_state.get("user")
+        is_admin = bool(user and user.get("role") == "admin")
+        if user:
             use_personal_data = st.toggle(
-                "Kết hợp dữ liệu cá nhân",
-                value=True,
-                key="personal_data_switch"
+                "Kết hợp dữ liệu cá nhân", value=True, key="personal_data_switch"
             )
         else:
             use_personal_data = False
-        # Chat input
-        user_text = st.chat_input(placeholder="Nhập câu hỏi y tế... (Enter để gửi)")
+        # Chat input: disable nếu là admin
+        user_text = st.chat_input(
+            placeholder="Nhập câu hỏi y tế... (Enter để gửi)", disabled=is_admin
+        )
         text_submit = bool(user_text)
 
     with col2:
@@ -317,10 +319,12 @@ def main():
         if last_user_msg:
             # Process with AI (no UI here, just processing)
             print("<duypv10 log> last_user_msg: ", last_user_msg)
-            user = st.session_state.get('user')
+            user = st.session_state.get("user")
             username = user.get("username") if user else None
 
-            result = ai.process_user_query(last_user_msg, get_latest_record, username, use_personal_data)
+            result = ai.process_user_query(
+                last_user_msg, get_latest_record, username, use_personal_data
+            )
 
             if "error" in result:
                 response = f"❌ Lỗi: {result['error']}"
@@ -356,17 +360,19 @@ def main():
 
     # Handle image processing state (background processing)
     if st.session_state.get("processing_image", False):
-        user_state = st.session_state.get('user')
+        user_state = st.session_state.get("user")
         if user_state:
-            latest_test_result = user_state.get('latest_test_result')
-            latest_prescription = user_state.get('latest_prescription')
+            latest_test_result = user_state.get("latest_test_result")
+            latest_prescription = user_state.get("latest_prescription")
         else:
             latest_test_result = None
             latest_prescription = None
         # Process with AI (no UI here, just processing)
         temp_image = st.session_state.temp_image
         temp_image.seek(0)
-        response = ai.analyze_medical_image(temp_image, "general", latest_prescription, latest_test_result)
+        response = ai.analyze_medical_image(
+            temp_image, "general", latest_prescription, latest_test_result
+        )
 
         # Generate audio
         # audio_bytes = text_to_speech.run_audio(response)
@@ -412,6 +418,7 @@ def main():
             logout_btn = st.button("Đăng xuất", key="logout_btn")
             if logout_btn:
                 del st.session_state["user"]
+                st.session_state["messages"] = []  # Xóa cuộc trò chuyện khi đăng xuất
                 st.success("Đã đăng xuất!")
                 st.rerun()
 
