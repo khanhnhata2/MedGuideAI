@@ -149,7 +149,7 @@ class MedGuideAI:
             return 'other'  # Default fallback
 
 
-    def process_user_query(self, user_input: str, get_latest_record, username, use_personal_data):
+    def process_user_query(self, user_input: str, get_latest_record, username, use_personal_data, get_records_in_range):
         """Main processing pipeline: classify -> query -> generate"""
         try:
             # Step 1: Text classification
@@ -164,15 +164,26 @@ class MedGuideAI:
 
             search_results=""
             ai_response = "❌ Không tìm thấy kết quả phù hợp."
-            user_test_result = "Hiện chưa có thông tin kết quả xét nghiệm gần nhất."
-            user_prescription = "Hiện chưa có thông tin đơn thuốc gần nhất"
+            user_test_result = None
+            user_prescription = None
+            previous_prescription = None
+            previous_test_result= None
 
             should_personalize = False
 
-            if topic in ("get_lab_results", "get_prescription", "other", "drug_groups") and username and use_personal_data:
+            if topic in ("other", "drug_groups") and username and use_personal_data:
                 should_personalize = True
                 user_prescription = get_latest_record("patient_prescriptions", username)
                 user_test_result = get_latest_record("patient_test_results", username)
+
+            if topic in ("get_lab_results", "get_prescription") and username:
+                should_personalize = True
+                user_prescription = get_latest_record("patient_prescriptions", username)
+                user_test_result = get_latest_record("patient_test_results", username)
+                if use_personal_data:
+                    previous_prescription = get_records_in_range("patient_prescriptions", username, 1)
+                    previous_test_result = get_records_in_range("patient_test_results", username, 1)
+
 
 
             # Step 2: Query rel evant collection
@@ -185,9 +196,9 @@ class MedGuideAI:
                 result = processor.process_with_function_calling(user_input)
                 ai_response = result["ai_response"]
             elif topic == "get_lab_results":
-                ai_response = summarize_user_result(self.system_prompt, user_test_result if should_personalize else None)
+                ai_response = summarize_user_result(self.system_prompt, user_test_result, previous_test_result if should_personalize else None)
             elif topic == "get_prescription":
-                ai_response = summarize_prescription(self.system_prompt, user_prescription if should_personalize else None)
+                ai_response = summarize_prescription(self.system_prompt, user_prescription, previous_prescription if should_personalize else None)
             elif topic == "drug_groups":
                 search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
 

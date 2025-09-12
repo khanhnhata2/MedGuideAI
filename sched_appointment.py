@@ -15,7 +15,7 @@ if not firebase_admin._apps:
     cred = credentials.Certificate(firebase_config)
     firebase_admin.initialize_app(cred)
 else:
-db = firestore.client()
+    db = firestore.client()
 
 
 # ==== Core function: Lưu lịch hẹn ====

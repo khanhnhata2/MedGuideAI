@@ -10,7 +10,7 @@ from speech_module.ffmpeg_decoding import AudioPlayer
 from speech_module.tts_mp3_stream import tts_stream
 from speech_module.test_streamlit_stt import speech_to_text
 import speed_to_text as sp
-from login import login, create_sample_users, get_latest_record
+from login import login, create_sample_users, get_latest_record, get_records_in_range
 import io
 import re
 import pdfplumber
@@ -328,7 +328,7 @@ def main():
             username = user.get("username") if user else None
 
             result = ai.process_user_query(
-                last_user_msg, get_latest_record, username, use_personal_data
+                last_user_msg, get_latest_record, username, use_personal_data, get_records_in_range
             )
 
             if "error" in result:
