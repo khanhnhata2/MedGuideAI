@@ -164,10 +164,10 @@ class MedGuideAI:
 
             search_results=""
             ai_response = "❌ Không tìm thấy kết quả phù hợp."
-            user_test_result = None
-            user_prescription = None
-            previous_prescription = None
-            previous_test_result= None
+            user_test_result = "Hiện không có kết quả"
+            user_prescription = "Hiện không có kết quả"
+            previous_prescription = "Hiện không có kết quả"
+            previous_test_result= "Hiện không có kết quả"
 
             should_personalize = False
 
@@ -196,9 +196,9 @@ class MedGuideAI:
                 result = processor.process_with_function_calling(user_input)
                 ai_response = result["ai_response"]
             elif topic == "get_lab_results":
-                ai_response = summarize_user_result(self.system_prompt, user_test_result, previous_test_result if should_personalize else None)
+                ai_response = summarize_user_result(self.system_prompt, user_test_result, previous_test_result if should_personalize else "Hiện không có kết quả")
             elif topic == "get_prescription":
-                ai_response = summarize_prescription(self.system_prompt, user_prescription, previous_prescription if should_personalize else None)
+                ai_response = summarize_prescription(self.system_prompt, user_prescription, previous_prescription if should_personalize else "Hiện không có kết quả")
             elif topic == "drug_groups":
                 search_results = self.pinecone_db.search_drug_groups(user_input, n_results=1)
 
@@ -245,6 +245,7 @@ class MedGuideAI:
                     
                     Nhiệm vụ:
                     1. Đưa ra tư vấn cho người dùng kết hợp với tiền sử kết quả xét nghiệm gần nhất của người dùng (nếu có) và đơn thuốc gần nhất của người dùng (nếu có)
+                    2. Nếu câu hỏi không liên quan đến y tế, thì chỉ cần trả lời: "MedguideAI không thể trả lời câu hỏi nằm ngoài lĩnh vực y tế" 
                     2. Dùng kiến thức y khoa từ nguồn uy tín (Bộ Y tế, WHO, PubMed...).
                     3. Khi trả lời giữ giọng văn chuyên nghiệp, dễ hiểu cho người không có chuyên môn y khoa
                     4. Trích dẫn những nguồn sử dụng
