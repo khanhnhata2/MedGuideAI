@@ -155,6 +155,11 @@ def process_image_pipeline(image_path: str, latest_prescription, latest_test_res
     elif doc_type == "kết quả xét nghiệm":
         item = analyze_lab_with_knowledge(text, latest_prescription, latest_test_result)
         print('item2', item.content)
+    else:
+        return {
+            "doc_type": doc_type,
+            "data": "unknown",
+        }
 
     return {
         "doc_type": doc_type,
