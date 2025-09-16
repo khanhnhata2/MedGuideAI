@@ -213,8 +213,8 @@ class MedGuideAI:
                     
                     Hướng dẫn
                     1. Xác định:
-                       - Nếu dữ liệu RAG liên quan → ưu tiên dùng.
-                       - Nếu dữ liệu RAG không liên quan hoặc không có → trả lời dựa trên kiến thức y khoa tổng quát từ nguồn uy tín (Bộ Y tế, WHO, PubMed…).
+                       - Nếu dữ liệu RAG liên quan → ưu tiên dùng và ghi nguồn: "Nguồn: MedGuideAI"
+                       - Nếu dữ liệu RAG không liên quan hoặc không có → trả lời dựa trên kiến thức y khoa tổng quát từ nguồn uy tín (Bộ Y tế, WHO, PubMed…) và ghi nguồn được sử dụng. Ví dụ: "Nguồn: WHO"
                     2. Cấu trúc câu trả lời:
                        - Giới thiệu ngắn gọn về thuốc hoặc chủ đề được hỏi.
                        - Giới thiệu về các hoạt chất trong thuốc
@@ -224,6 +224,10 @@ class MedGuideAI:
                        - **Cá nhân hóa**:
                             - Dựa vào kết quả xét nghiệm gần nhất của bệnh nhân(nếu có), đưa ra cụ thể những ảnh hưởng tốt và xấu của thuốc, những lưu ý, tác dụng phụ ảnh hưởng đến cơ thể người dùng khi dùng loại thuốc đang hỏi.
                             - Dựa vào đơn thuốc gần nhất của bệnh nhân(nếu có), đưa ra cụ thể những lưu ý, tương tác thuốc có thể có giữa đơn thuốc gần nhất với loại thuốc người dùng hỏi
+                       - Nguồn:
+                            - Nếu dữ liệu RAG liên quan → BẮT BUỘC ghi rõ nguồn như sau:"Nguồn: MedGuideAI"
+                            - Nếu dữ liệu RAG không liên quan hoặc không có → ghi nguồn được sử dụng. Ví dụ: "Nguồn: WHO"
+                    3. Nếu chưa có thông tin về kết quả xét nghiệm gần nhất của người dùng hoặc là đơn thuốc gần nhất của người dùng thì không đề cập trong mục cá nhân hóa
                     """
                 response = self.client.chat.completions.create(
                     model="GPT-4o-mini",
@@ -303,150 +307,3 @@ class MedGuideAI:
 
         except Exception as e:
             return f"Lỗi khi phân tích hình ảnh: {str(e)}"
-
-    def analyze_lab_results(self, test_results: List[Dict], patient_age: int = None, patient_gender: str = None):
-        """Phân tích chi tiết kết quả xét nghiệm và đưa ra tư vấn"""
-        analysis = []
-        abnormal_findings = []
-        recommendations = []
-       
-        for test in test_results:
-            test_name = test.get("test_name", "")
-            value = test.get("value", 0)
-            unit = test.get("unit", "")
-           
-            # Phân tích chi tiết từng chỉ số
-            if "glucose" in test_name.lower() or "đường huyết" in test_name.lower():
-                if value > 126:
-                    status = "Cao hơn bình thường - có thể chỉ ra nguy cơ tiểu đường"
-                    abnormal_findings.append(f"Đường huyết cao ({value} {unit})")
-                    recommendations.extend([
-                        "Giảm tiêu thụ đường và carbohydrate tinh chế",
-                        "Tăng cường hoạt động thể chất (đi bộ 30 phút/ngày)",
-                        "Chia nhỏ bữa ăn trong ngày",
-                        "Theo dõi cân nặng"
-                    ])
-                elif value < 70:
-                    status = "Thấp hơn bình thường - có thể do nhịn ăn hoặc vấn đề sức khỏe khác"
-                    abnormal_findings.append(f"Đường huyết thấp ({value} {unit})")
-                    recommendations.extend([
-                        "Ăn đủ bữa, không bỏ bữa",
-                        "Có sẵn kẹo hoặc nước ngọt khi cần",
-                        "Theo dõi triệu chứng hạ đường huyết"
-                    ])
-                else:
-                    status = "Trong giới hạn bình thường - tốt"
-           
-            elif "cholesterol" in test_name.lower() or "mỡ máu" in test_name.lower():
-                if value > 240:
-                    status = "Cao - tăng nguy cơ bệnh tim mạch"
-                    abnormal_findings.append(f"Cholesterol cao ({value} {unit})")
-                    recommendations.extend([
-                        "Giảm thực phẩm nhiều chất béo bão hòa",
-                        "Tăng omega-3 (cá, hạt óc chó)",
-                        "Ăn nhiều rau xanh và trái cây",
-                        "Tập thể dục đều đặn"
-                    ])
-                elif value > 200:
-                    status = "Hơi cao - cần chú ý chế độ ăn"
-                    recommendations.extend([
-                        "Kiểm soát chế độ ăn",
-                        "Tăng hoạt động thể chất"
-                    ])
-                else:
-                    status = "Bình thường - tốt"
-           
-            elif "hemoglobin" in test_name.lower() or "hồng cầu" in test_name.lower():
-                if value < 12 and patient_gender == "female":
-                    status = "Thấp - có thể thiếu máu"
-                    abnormal_findings.append(f"Hemoglobin thấp ({value} {unit})")
-                    recommendations.extend([
-                        "Ăn thực phẩm giàu sắt (thịt đỏ, gan, rau bina)",
-                        "Kết hợp với vitamin C để tăng hấp thu sắt",
-                        "Tránh uống trà/cà phê ngay sau bữa ăn"
-                    ])
-                elif value < 13 and patient_gender == "male":
-                    status = "Thấp - có thể thiếu máu"
-                    abnormal_findings.append(f"Hemoglobin thấp ({value} {unit})")
-                else:
-                    status = "Bình thường"
-           
-            else:
-                # Phân tích chung cho các xét nghiệm khác
-                status = "Cần tham khảo ý kiến bác sĩ để hiểu rõ ý nghĩa"
-           
-            analysis.append(f"• **{test_name}**: {value} {unit} - {status}")
-       
-        # Lưu vào context
-        self.add_to_context("symptoms_timeline", f"Xét nghiệm: {', '.join([t['test_name'] for t in test_results])}")
-       
-        result = {
-            "detailed_analysis": analysis,
-            "abnormal_findings": abnormal_findings,
-            "lifestyle_recommendations": list(set(recommendations)) if recommendations else ["Duy trì lối sống lành mạnh"],
-            "follow_up_advice": "Theo dõi định kỳ và tham khảo bác sĩ để có kế hoạch điều chỉnh phù hợp"
-        }
-       
-        return json.dumps(result, ensure_ascii=False, indent=2)
-   
-    def analyze_prescription(self, medications: List[Dict], current_medications: List[str] = None, allergies: List[str] = None):
-        """Phân tích đơn thuốc chi tiết với thông tin hữu ích"""
-        drug_analysis = []
-        usage_tips = []
-       
-        # Lưu thuốc vào context
-        for med in medications:
-            self.add_to_context("medications", f"{med['drug_name']} {med['dosage']}")
-       
-        for med in medications:
-            drug_name = med.get("drug_name", "")
-            dosage = med.get("dosage", "")
-            frequency = med.get("frequency", "")
-            duration = med.get("duration", "")
-           
-            # Phân tích cơ bản theo tên thuốc (có thể mở rộng)
-            usage_info = ""
-            if any(keyword in drug_name.lower() for keyword in ["paracetamol", "acetaminophen"]):
-                usage_info = " - Thuốc giảm đau, hạ sốt. Uống sau ăn, không quá 4g/ngày"
-            elif any(keyword in drug_name.lower() for keyword in ["ibuprofen"]):
-                usage_info = " - Thuốc chống viêm, giảm đau. Uống sau ăn để tránh đau dạ dày"
-            elif any(keyword in drug_name.lower() for keyword in ["amoxicillin"]):
-                usage_info = " - Kháng sinh. Uống đủ liều theo đơn, không tự ý ngừng"
-            elif any(keyword in drug_name.lower() for keyword in ["omeprazole"]):
-                usage_info = " - Thuốc dạ dày. Uống trước ăn sáng 30-60 phút"
-           
-            analysis = f"• **{drug_name}** ({dosage}, {frequency}){usage_info}"
-            if duration:
-                analysis += f" - Thời gian: {duration}"
-               
-            drug_analysis.append(analysis)
-       
-        # Lời khuyên chung
-        general_tips = [
-            "Uống thuốc đúng giờ theo chỉ định của bác sĩ",
-            "Không tự ý tăng/giảm liều lượng",
-            "Uống thuốc với nước lọc, tránh nước ngọt hoặc rượu bia",
-            "Bảo quản thuốc nơi khô ráo, thoáng mát",
-            "Thông báo với bác sĩ nếu có tác dụng phụ bất thường"
-        ]
-       
-        result = {
-            "medications_analysis": drug_analysis,
-            "drug_interactions": [],
-            "allergy_warnings": [],
-            "usage_guidelines": general_tips,
-            "important_notes": "Hoàn thành đủ liệu trình kháng sinh nếu có. Không chia sẻ thuốc với người khác."
-        }
-       
-        return json.dumps(result, ensure_ascii=False, indent=2)
-   
-    def create_health_plan(self, health_goals: List[str], current_conditions: List[str] = None, lifestyle_factors: Dict = None):
-        """Tạo kế hoạch chăm sóc sức khỏe cá nhân hóa"""
-        plan = {
-            "health_goals": health_goals,
-            "nutrition_plan": ["Ăn nhiều rau xanh", "Giảm đường và muối"],
-            "exercise_plan": ["Đi bộ 30 phút/ngày", "Yoga 2-3 lần/tuần"],
-            "monitoring_schedule": ["Kiểm tra sức khỏe định kỳ"]
-        }
-       
-        return json.dumps(plan, ensure_ascii=False, indent=2)
