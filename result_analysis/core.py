@@ -81,13 +81,13 @@ def summarize_user_result(system_prompt, user_result, previous_user_result):
                     - Kết quả xét nghiệm trước đó: "{previous_user_result if previous_user_result else "Hiện chưa có thông tin"}"
                     
                     Yêu cầu:
-                    1. Tóm tắt kết quả xét nghiệm gần nhất và đưa ra tư vấn về kết quả, lối sống, dinh dưỡng cho người dùng
-                    2. So sánh kết quả xét nghiệm gần nhất và kết quả xét nghiệm trước đó, đưa ra những chỉ số có sự thay đổi và nhận xét chi tiết
-                    - Ví dụ "8.0 -> 5.0 (giảm) -> Tốt"
+                    1. Tóm tắt kết quả xét nghiệm gần nhất và đưa ra giải thích ý nghĩa về của những mục xét nghiệm bất thường.
+                    2.̀ Tư vấn chi tiết về kết quả, lối sống, dinh dưỡng cho người dùng
+                    3. So sánh kết quả xét nghiệm gần nhất và kết quả xét nghiệm trước đó, chỉ đưa ra những chỉ số có sự thay đổi về mặt số học và nhận xét chi tiết
                     - Nếu không có kêt quả xét nghiệm trước đó thì bỏ qua so sánh
-                    3. Trả lời với giọng văn chuyên nghiệp, dễ hiểu
-                    4. Kết thúc bằng link file gốc của kết quả xét nghiệm gần nhất(nếu có): {fileUrl}
-                    5. Kết thúc bằng link file gốc của kết quả xét nghiệm trước đó(nếu có): {previousFileUrl}
+                    4. Trả lời với giọng văn chuyên nghiệp, dễ hiểu
+                    5. Kết thúc bằng link file gốc của kết quả xét nghiệm gần nhất(nếu có): {fileUrl}
+                    6. Kết thúc bằng link file gốc của kết quả xét nghiệm trước đó(nếu có): {previousFileUrl}
                     """
                 }
             ],
